@@ -15,8 +15,8 @@
 *
 * OUTPUTS (created automatically):
 *   - replication_log.txt (root)
-*   - Tables/*.tex (LaTeX tables)
-*   - Figures/*.pdf, *.gph (local projection graphs)
+*   - Tables/ (LaTeX .tex tables)
+*   - Figures/ (.pdf and .gph local projection graphs)
 *
 * REQUIRED STATA PACKAGES (install via ssc install):
 *   - reghdfe (high-dimensional fixed effects regression)
