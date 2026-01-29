@@ -54,13 +54,18 @@ To replicate the analysis, users should use Stata. The replication package inclu
    ```
 
 5. **The script will automatically:**
+   - Create `Tables/` and `Figures/` folders (if missing)
    - Install required packages (`reghdfe`, `ftools`, `estout`, `winsor2`, `locproj`)
    - Load and merge raw datasets
    - Construct all variables
    - Run all regressions
-   - Export LaTeX tables and local projection graphs
+   - Export LaTeX tables to `Tables/`, graphs to `Figures/`, and log to the repository root
 
-6. **Check outputs:** Tables (`.tex` files), log file (`replication_log.txt`), and graphs (`Local Projections/` folder).
+6. **Check outputs:**
+   - **Log:** `replication_log.txt` (repository root)
+   - **Tables:** `Tables/` (all `.tex` files)
+   - **Figures:** `Figures/` (local projection PDFs and `.gph` files).  
+   `Tables/` and `Figures/` are not in the repository; they are created when you run the do-file.
 
 ### Efficient Re-runs
 

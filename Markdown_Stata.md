@@ -6,12 +6,9 @@
 
 ---
 
-<details>
-<summary><h2>Introduction</h2></summary>
+## Introduction
 
-This appendix provides the Stata code to replicate all tables and figures in the paper *"Currency Mismatches in Emerging Markets: Effects on Corporate Liquidity, Investment Dynamics and Performance"*. 
-
-Click on each section header to expand and see the Stata code.
+This appendix provides the Stata code to replicate all tables and figures in the paper *"Currency Mismatches in Emerging Markets: Effects on Corporate Liquidity, Investment Dynamics and Performance"*.
 
 ### Required Files
 
@@ -33,12 +30,9 @@ The following user-written packages are required (automatically installed by the
 - **winsor2**: Winsorization
 - **locproj**: Local projections (for Appendix D)
 
-</details>
-
 ---
 
-<details>
-<summary><h2>Data Loading and Variable Definitions</h2></summary>
+## Data Loading and Variable Definitions
 
 This section loads the raw data, merges auxiliary datasets, and constructs all variables used in the analysis.
 
@@ -65,6 +59,10 @@ set more off
 * Start log file
 capture log close
 log using "replication_log.txt", text replace
+
+* Create output folders (Tables, Figures)
+cap mkdir "Tables"
+cap mkdir "Figures"
 
 *------------------------------------------------------------------------------
 * 1.1 Load main dataset and merge auxiliary data
@@ -225,12 +223,9 @@ drop sp_mean2
 label variable sp4imp "Sp (Demeaned Risk-Adjusted Spread)"
 ```
 
-</details>
-
 ---
 
-<details>
-<summary><h2>Main Body Tables</h2></summary>
+## Main Body Tables
 
 ### Table 1: Cash Holdings, Foreign Bond Issuance, and Currency Depreciations
 
@@ -319,7 +314,7 @@ est sto t1_m9
 * Export Table 1
 *------------------------------------------------------------------------------
 esttab t1_m1 t1_m2 t1_m3 t1_m4 t1_m5 t1_m6 t1_m7 t1_m8 t1_m9 ///
-    using "Table1_CashHoldings.tex", replace ///
+    using "Tables/Table1_CashHoldings.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
     star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f) ///
     keep(FXBHassl c.FXBHassl#c.dlndtcr c.FXBHassl#c.sp4imp ///
@@ -387,7 +382,7 @@ estadd loc year_fe "Yes"
 * Export Table 2
 *------------------------------------------------------------------------------
 esttab t2_m1 t2_m2 t2_m3 t2_m4 t2_m5 t2_m6 t2_m7 t2_m8 t2_m9 ///
-    using "Table2_Investment.tex", replace ///
+    using "Tables/Table2_Investment.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
     star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f) ///
     stats(N r2 r2_a firm_fe year_fe, fmt(%9.0fc %9.3f %9.3f %9s %9s) ///
@@ -434,7 +429,7 @@ reghdfe tinv2al c.FXBHassl##c.dlndtcr##c.sp4imp ///
 est sto t3a_m3
 
 esttab t3a_m1 t3a_m2 t3a_m3 t3a_m4 t3a_m5 t3a_m6 t3a_m7 t3a_m8 t3a_m9 ///
-    using "Table3_PanelA_TotalInvestment.tex", replace ///
+    using "Tables/Table3_PanelA_TotalInvestment.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
     star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
 ```
@@ -460,7 +455,7 @@ reghdfe dwc2al c.FXBHassl##c.dlndtcr##c.sp4imp ///
     absorb(id year c) cluster(c) 
 
 esttab t3b_m1 t3b_m2 t3b_m3 t3b_m4 t3b_m5 t3b_m6 t3b_m7 t3b_m8 t3b_m9 ///
-    using "Table3_PanelB_WorkingCapital.tex", replace ///
+    using "Tables/Table3_PanelB_WorkingCapital.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
     star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
 ```
@@ -521,17 +516,14 @@ est sto t4_m6
 * Export Table 4
 *------------------------------------------------------------------------------
 esttab t4_m1 t4_m2 t4_m3 t4_m4 t4_m5 t4_m6 t4_m7 t4_m8 ///
-    using "Table4_Competitiveness.tex", replace ///
+    using "Tables/Table4_Competitiveness.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
     star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
 ```
 
-</details>
-
 ---
 
-<details>
-<summary><h2>Appendix A: Variable Definitions and Summary Statistics</h2></summary>
+## Appendix A: Variable Definitions and Summary Statistics
 
 ### Variable Definitions
 
@@ -557,26 +549,37 @@ esttab t4_m1 t4_m2 t4_m3 t4_m4 t4_m5 t4_m6 t4_m7 t4_m8 ///
 
 ### Table A2: Summary Statistics
 
+The paper reports summary statistics in **two panels**: (1) **General** — full sample; (2) **By country** — mean, S.D., and N per country. The do-file writes each panel to a separate `.tex` file.
+
 ```stata
 ********************************************************************************
-* APPENDIX A: Summary Statistics
+* APPENDIX A: Summary Statistics (Table A2)
+* Panel 1: General (full sample). Panel 2: By country.
 ********************************************************************************
 
-estpost summarize dcash capex2al tinv2al dwc2al FXBHassl DCBassl cfo2al ///
-    osources2al forev2al netderiv2al size qtob debt2a ltdtd sales2a ///
-    dlndtcr sp4imp gdpgrowth privcreditovgdp lngdp, detail
+gen operoa_ratio = operoa / 100
 
-esttab using "TableA2_SummaryStats.tex", replace ///
-    cells("count mean sd min p25 p50 p75 max") ///
-    noobs nomtitle nonumber
+* Panel 1 - General (full sample)
+estpost summarize cash2al capex2al cfo2al operoa_ratio roal FXBHassl DCBassl ///
+    osources2al size qtob debt2a ltdtd sales2a dlndtcr sp4imp, detail
+
+esttab using "Tables/TableA2_SummaryStats_General.tex", replace ///
+    cells("count mean sd min p25 p50 p75 max") noobs nomtitle nonumber
+
+* Panel 2 - By country (mean, sd, N per country)
+estpost tabstat cash2al capex2al cfo2al operoa_ratio roal FXBHassl DCBassl ///
+    osources2al size qtob debt2a ltdtd sales2a, ///
+    by(pais) stat(mean sd count) nototal columns(statistics)
+
+esttab using "Tables/TableA2_SummaryStats_ByCountry.tex", replace ///
+    cells("mean(fmt(3)) sd(fmt(3)) count(fmt(0))") noobs nomtitle nonumber
+
+drop operoa_ratio
 ```
-
-</details>
 
 ---
 
-<details>
-<summary><h2>Online Appendix</h2></summary>
+## Online Appendix
 
 ### Appendix B: Robustness Checks - Cash Holdings
 
@@ -622,7 +625,38 @@ reghdfe dcash c.FXBHassl##c.dlndtcr##c.sp4imp DCBassl cfo2al osources2al ///
 est sto b1_m8
 
 esttab b1_m1 b1_m2 b1_m3 b1_m4 b1_m5 b1_m6 b1_m7 b1_m8 ///
-    using "TableB1_Cash_Covariates.tex", replace ///
+    using "Tables/TableB1_Cash_Covariates.tex", replace ///
+    fragment booktabs label nonotes noomit nomtitles collabels(none) ///
+    star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
+```
+
+#### Table B2: Introducing Lags
+
+Adds lags (and second lags) of FXBHA, DCBA, CFO, and other sources.
+
+```stata
+* Table B2: Cash holding (Introducing Lags)
+reghdfe dcash FXBHassl l.FXBHassl l2.FXBHassl DCBassl l.DCBassl l2.DCBassl ///
+    cfo2al l.cfo2al l2.cfo2al osources2al l.osources2al l2.osources2al ///
+    forev2al netderiv2al size qtob debt2a ltdtd sales2a gdpgrowth privcreditovgdp lngdp, ///
+    absorb(id year c) cluster(c)
+est sto b2_m1
+
+reghdfe dcash c.FXBHassl##c.dlndtcr c.FXBHassl##c.sp4imp ///
+    l.(c.FXBHassl##c.dlndtcr c.FXBHassl##c.sp4imp) l2.(c.FXBHassl##c.dlndtcr c.FXBHassl##c.sp4imp) ///
+    DCBassl l.DCBassl l2.DCBassl cfo2al l.cfo2al l2.cfo2al osources2al l.osources2al l2.osources2al ///
+    forev2al netderiv2al size qtob debt2a ltdtd sales2a gdpgrowth privcreditovgdp lngdp, ///
+    absorb(id year c) cluster(c)
+est sto b2_m2
+
+reghdfe dcash c.FXBHassl##c.dlndtcr##c.sp4imp ///
+    l.(c.FXBHassl##c.dlndtcr##c.sp4imp) l2.(c.FXBHassl##c.dlndtcr##c.sp4imp) ///
+    DCBassl l.DCBassl l2.DCBassl cfo2al l.cfo2al l2.cfo2al osources2al l.osources2al l2.osources2al ///
+    forev2al netderiv2al size qtob debt2a ltdtd sales2a gdpgrowth privcreditovgdp lngdp, ///
+    absorb(id year c) cluster(c)
+est sto b2_m3
+
+esttab b2_m1 b2_m2 b2_m3 using "Tables/TableB2_Cash_Lags.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
     star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
 ```
@@ -650,7 +684,33 @@ reghdfe dcash c.FXBHassl##c.dlndtcr##c.sp4imp DCBassl cfo2al forev2al ///
     absorb(id cye) cluster(c) 
 est sto b3_m3
 
-esttab b3_m1 b3_m2 b3_m3 using "TableB3_Cash_CYI_FE.tex", replace ///
+esttab b3_m1 b3_m2 b3_m3 using "Tables/TableB3_Cash_CYI_FE.tex", replace ///
+    fragment booktabs label nonotes noomit nomtitles collabels(none) ///
+    star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
+```
+
+#### Table B4: Alternative Depreciation (Dummy)
+
+Uses a depreciation dummy instead of the continuous FXDep measure.
+
+```stata
+* Table B4: Cash holding (Alternative Depreciation Definition - Dummy)
+reghdfe dcash FXBHassl DCBassl cfo2al osources2al forev2al sp4imp cursdepre ///
+    netderiv2al size qtob debt2a ltdtd sales2a gdpgrowth privcreditovgdp lngdp, ///
+    absorb(id year c) cluster(c)
+est sto b4_m1
+
+reghdfe dcash c.FXBHassl##c.cursdepre c.FXBHassl##c.sp4imp DCBassl cfo2al ///
+    osources2al forev2al netderiv2al size qtob debt2a ltdtd sales2a ///
+    gdpgrowth privcreditovgdp lngdp, absorb(id year c) cluster(c)
+est sto b4_m2
+
+reghdfe dcash c.FXBHassl##c.cursdepre##c.sp4imp DCBassl cfo2al osources2al ///
+    forev2al netderiv2al size qtob debt2a ltdtd sales2a gdpgrowth privcreditovgdp lngdp, ///
+    absorb(id year c) cluster(c)
+est sto b4_m3
+
+esttab b4_m1 b4_m2 b4_m3 using "Tables/TableB4_Cash_AltDepreciation.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
     star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
 ```
@@ -683,7 +743,7 @@ reghdfe dcash c.FXBHassl##c.dlndtcr##c.sp4imp DCBassl cfo2al osources2al forev2a
     if fderiv==1, absorb(id year c) cluster(c) 
 est sto b5_m4
 
-esttab b5_m1 b5_m2 b5_m3 b5_m4 using "TableB5_Cash_Hedging.tex", replace ///
+esttab b5_m1 b5_m2 b5_m3 b5_m4 using "Tables/TableB5_Cash_Hedging.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
     star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
 ```
@@ -714,7 +774,70 @@ reghdfe capex2al c.FXBHassl##c.dlndtcr##c.sp4imp ///
 est sto c1_m7
 
 esttab c1_m1 c1_m2 c1_m3 c1_m4 c1_m5 c1_m6 c1_m7 c1_m8 ///
-    using "TableC1_Investment_Covariates.tex", replace ///
+    using "Tables/TableC1_Investment_Covariates.tex", replace ///
+    fragment booktabs label nonotes noomit nomtitles collabels(none) ///
+    star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
+```
+
+#### Table C2: Introducing Additional Lags
+
+Adds second and third lags of FXBHA, DCBA, CFO, and other sources (investment sample).
+
+```stata
+* Table C2: Investment (Introducing Additional Lags)
+reghdfe capex2al FXBHassl l.FXBHassl l2.FXBHassl l3.FXBHassl DCBassl l.DCBassl l2.DCBassl l3.DCBassl ///
+    cfo2al l.cfo2al l2.cfo2al l3.cfo2al osources2al l.osources2al l2.osources2al l3.osources2al ///
+    l.forev2al l.netderiv2al l.size l.qtob l.debt2a l.ltdtd l.sales2a l.gdpgrowth l.privcreditovgdp l.lngdp, ///
+    absorb(id year c) cluster(c)
+est sto c2_m1
+* ... c2_m2, c2_m3 (two- and three-way interactions with lags)
+esttab c2_m1 c2_m2 c2_m3 using "Tables/TableC2_Investment_Lags.tex", replace ///
+    fragment booktabs label nonotes noomit nomtitles collabels(none) ///
+    star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
+```
+
+#### Table C3: Country-Year-Industry Fixed Effects
+
+Investment regressions with country–year–industry FE instead of year FE.
+
+```stata
+* Table C3: Investment (Country-Year-Industry Fixed Effects)
+reghdfe capex2al FXBHassl l.FXBHassl DCBassl l.DCBassl cfo2al l.cfo2al osources2al l.osources2al ///
+    forev2al l.forev2al netderiv2al l.netderiv2al l.size l.qtob l.debt2a l.ltdtd l.sales2a, ///
+    absorb(id cye) cluster(c)
+est sto c3_m1
+* ... c3_m2, c3_m3 (interactions; absorb id cye)
+esttab c3_m1 c3_m2 c3_m3 using "Tables/TableC3_Investment_CYI_FE.tex", replace ///
+    fragment booktabs label nonotes noomit nomtitles collabels(none) ///
+    star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
+```
+
+#### Table C4: Alternative Depreciation (Dummy)
+
+Investment regressions using a depreciation dummy instead of continuous FXDep.
+
+```stata
+* Table C4: Investment (Alternative Depreciation Definition - Dummy)
+reghdfe capex2al c.FXBHassl##c.cursdepre c.FXBHassl##c.sp4imp ///
+    c.l.FXBHassl##c.l.cursdepre c.l.FXBHassl##c.l.sp4imp DCBassl l.DCBassl cfo2al l.cfo2al ///
+    osources2al l.osources2al l.forev2al l.netderiv2al l.size l.qtob l.debt2a l.ltdtd l.sales2a ///
+    l.gdpgrowth l.privcreditovgdp l.lngdp, absorb(id year c) cluster(c)
+est sto c4_m1
+* ... c4_m2 (triple interaction with cursdepre)
+esttab c4_m1 c4_m2 using "Tables/TableC4_Investment_AltDepreciation.tex", replace ///
+    fragment booktabs label nonotes noomit nomtitles collabels(none) ///
+    star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
+```
+
+#### Table C5: Hedging Heterogeneity
+
+Investment (total investment) regressions by derivatives use: no derivatives vs. uses derivatives.
+
+```stata
+* Table C5: Investment and hedging derivatives heterogeneity
+* No derivatives: tinv2al, fderiv==0 → c5_m1, c5_m2
+* Uses derivatives: tinv2al, fderiv==1 → c5_m3, c5_m4
+esttab c5_m1 c5_m2 c5_m3 c5_m4 using "Tables/TableC5_Investment_Hedging.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
     star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
 ```
@@ -733,7 +856,7 @@ This section uses local projections to estimate impulse response functions for o
 * Note: This section requires the locproj package
 * ssc install locproj
 
-cap mkdir "Local Projections"
+* Figures/ already created at start
 
 * Generate interaction variables for local projections
 gen FXBH_dlndtcr = FXBHassl * dlndtcr
@@ -752,8 +875,8 @@ locproj operoa FXBHassl FXBH_dlndtcr FXBH_sp4imp L1_FXBH_dlndtcr L1_FXBH_sp4imp 
     met(reghdfe) absorb(id yc) vce(cluster c) ///
     yl(2) sl(2) h(0/8)
 graph rename Graph operating_income_irf, replace
-graph save "Local Projections/operating_income_irf.gph", replace
-graph export "Local Projections/operating_income_irf.pdf", replace
+graph save "Figures/operating_income_irf.gph", replace
+graph export "Figures/operating_income_irf.pdf", replace
 
 *------------------------------------------------------------------------------
 * Non-operating Income IRF
@@ -763,8 +886,8 @@ locproj nonopincome FXBHassl FXBH_dlndtcr FXBH_sp4imp L1_FXBH_dlndtcr L1_FXBH_sp
     met(reghdfe) absorb(id yc) vce(cluster c) ///
     yl(2) sl(2) h(0/8)
 graph rename Graph nonoperating_income_irf, replace
-graph save "Local Projections/nonoperating_income_irf.gph", replace
-graph export "Local Projections/nonoperating_income_irf.pdf", replace
+graph save "Figures/nonoperating_income_irf.gph", replace
+graph export "Figures/nonoperating_income_irf.pdf", replace
 
 *------------------------------------------------------------------------------
 * Log Sales IRF
@@ -774,8 +897,8 @@ locproj lnsales FXBHassl FXBH_dlndtcr FXBH_sp4imp L1_FXBH_dlndtcr L1_FXBH_sp4imp
     met(reghdfe) absorb(id yc) vce(cluster c) ///
     yl(2) sl(2) h(0/8)
 graph rename Graph log_sales_irf, replace
-graph save "Local Projections/log_sales_irf.gph", replace
-graph export "Local Projections/log_sales_irf.pdf", replace
+graph save "Figures/log_sales_irf.gph", replace
+graph export "Figures/log_sales_irf.pdf", replace
 
 *------------------------------------------------------------------------------
 * Sales-to-Assets Ratio IRF
@@ -785,11 +908,9 @@ locproj sales2al FXBHassl FXBH_dlndtcr FXBH_sp4imp L1_FXBH_dlndtcr L1_FXBH_sp4im
     met(reghdfe) absorb(id yc) vce(cluster c) ///
     yl(2) sl(2) h(0/8)
 graph rename Graph sales_assets_irf, replace
-graph save "Local Projections/sales_assets_irf.gph", replace
-graph export "Local Projections/sales_assets_irf.pdf", replace
+graph save "Figures/sales_assets_irf.gph", replace
+graph export "Figures/sales_assets_irf.pdf", replace
 ```
-
-</details>
 
 ---
 

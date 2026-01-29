@@ -13,6 +13,11 @@
 *   - data/Issuance Firm-Year.dta (bond issuance data)
 *   - data/exrates.dta (exchange rate data)
 *
+* OUTPUTS (created automatically):
+*   - replication_log.txt (root)
+*   - Tables/*.tex (LaTeX tables)
+*   - Figures/*.pdf, *.gph (local projection graphs)
+*
 * REQUIRED STATA PACKAGES (install via ssc install):
 *   - reghdfe (high-dimensional fixed effects regression)
 *   - estout (esttab, eststo, estadd commands for table export)
@@ -42,6 +47,10 @@ set more off
 * Start log file
 capture log close
 log using "replication_log.txt", text replace
+
+* Create output folders (Tables, Figures) if they do not exist
+cap mkdir "Tables"
+cap mkdir "Figures"
 
 *------------------------------------------------------------------------------
 * Check if processed dataset already exists with required variables
@@ -665,7 +674,7 @@ estadd loc year_fe "Yes"
 *------------------------------------------------------------------------------
 * Export Table 1
 *------------------------------------------------------------------------------
-esttab t1_m1 t1_m2 t1_m3 t1_m4 t1_m5 t1_m6 t1_m7 t1_m8 t1_m9 using "Table1_CashHoldings.tex", replace ///
+esttab t1_m1 t1_m2 t1_m3 t1_m4 t1_m5 t1_m6 t1_m7 t1_m8 t1_m9 using "Tables/Table1_CashHoldings.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
     star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f) ///
     keep(FXBHassl c.FXBHassl#c.dlndtcr c.FXBHassl#c.sp4imp c.FXBHassl#c.dlndtcr#c.sp4imp ///
@@ -759,7 +768,7 @@ estadd loc year_fe "Yes"
 *------------------------------------------------------------------------------
 * Export Table 2
 *------------------------------------------------------------------------------
-esttab t2_m1 t2_m2 t2_m3 t2_m4 t2_m5 t2_m6 t2_m7 t2_m8 t2_m9 using "Table2_Investment.tex", replace ///
+esttab t2_m1 t2_m2 t2_m3 t2_m4 t2_m5 t2_m6 t2_m7 t2_m8 t2_m9 using "Tables/Table2_Investment.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
     star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f) ///
     keep(FXBHassl c.FXBHassl#c.dlndtcr c.FXBHassl#c.sp4imp c.FXBHassl#c.dlndtcr#c.sp4imp ///
@@ -857,7 +866,7 @@ estadd loc year_fe "Yes"
 *------------------------------------------------------------------------------
 * Export Table 3 Panel A
 *------------------------------------------------------------------------------
-esttab t3a_m1 t3a_m2 t3a_m3 t3a_m4 t3a_m5 t3a_m6 t3a_m7 t3a_m8 t3a_m9 using "Table3_PanelA_TotalInvestment.tex", replace ///
+esttab t3a_m1 t3a_m2 t3a_m3 t3a_m4 t3a_m5 t3a_m6 t3a_m7 t3a_m8 t3a_m9 using "Tables/Table3_PanelA_TotalInvestment.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
     star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f) ///
     keep(FXBHassl dlndtcr sp4imp c.FXBHassl#c.dlndtcr c.FXBHassl#c.sp4imp c.FXBHassl#c.dlndtcr#c.sp4imp ///
@@ -944,7 +953,7 @@ estadd loc year_fe "Yes"
 *------------------------------------------------------------------------------
 * Export Table 3 Panel B
 *------------------------------------------------------------------------------
-esttab t3b_m1 t3b_m2 t3b_m3 t3b_m4 t3b_m5 t3b_m6 t3b_m7 t3b_m8 t3b_m9 using "Table3_PanelB_WorkingCapital.tex", replace ///
+esttab t3b_m1 t3b_m2 t3b_m3 t3b_m4 t3b_m5 t3b_m6 t3b_m7 t3b_m8 t3b_m9 using "Tables/Table3_PanelB_WorkingCapital.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
     star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f) ///
     keep(FXBHassl dlndtcr sp4imp c.FXBHassl#c.dlndtcr c.FXBHassl#c.sp4imp c.FXBHassl#c.dlndtcr#c.sp4imp ///
@@ -1016,7 +1025,7 @@ estadd loc year_fe "Yes"
 *------------------------------------------------------------------------------
 * Export Table 4
 *------------------------------------------------------------------------------
-esttab t4_m1 t4_m2 t4_m3 t4_m4 t4_m5 t4_m6 t4_m7 t4_m8 using "Table4_Competitiveness.tex", replace ///
+esttab t4_m1 t4_m2 t4_m3 t4_m4 t4_m5 t4_m6 t4_m7 t4_m8 using "Tables/Table4_Competitiveness.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
     star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f) ///
     keep(FXBHassl sp4imp dlndtcr c.FXBHassl#c.dlndtcr c.FXBHassl#c.sp4imp c.FXBHassl#c.dlndtcr#c.sp4imp ///
@@ -1040,14 +1049,30 @@ esttab t4_m1 t4_m2 t4_m3 t4_m4 t4_m5 t4_m6 t4_m7 t4_m8 using "Table4_Competitive
 
 *------------------------------------------------------------------------------
 * Summary Statistics (Table A2)
+* Paper has two panels: (1) General (full sample), (2) By country.
 *------------------------------------------------------------------------------
-estpost summarize dcash capex2al tinv2al dwc2al FXBHassl DCBassl cfo2al ///
-    osources2al forev2al netderiv2al size qtob debt2a ltdtd sales2a ///
-    dlndtcr sp4imp gdpgrowth privcreditovgdp lngdp, detail
 
-esttab using "TableA2_SummaryStats.tex", replace ///
+* Operating ROA as ratio for summary (paper uses 0.xx); operoa is stored as %.
+gen operoa_ratio = operoa / 100
+
+* Panel 1 - General (full sample)
+estpost summarize cash2al capex2al cfo2al operoa_ratio roal FXBHassl DCBassl ///
+    osources2al size qtob debt2a ltdtd sales2a dlndtcr sp4imp, detail
+
+esttab using "Tables/TableA2_SummaryStats_General.tex", replace ///
     cells("count mean sd min p25 p50 p75 max") ///
     noobs nomtitle nonumber
+
+* Panel 2 - By country (mean, sd, N per country)
+estpost tabstat cash2al capex2al cfo2al operoa_ratio roal FXBHassl DCBassl ///
+    osources2al size qtob debt2a ltdtd sales2a, ///
+    by(pais) stat(mean sd count) nototal columns(statistics)
+
+esttab using "Tables/TableA2_SummaryStats_ByCountry.tex", replace ///
+    cells("mean(fmt(3)) sd(fmt(3)) count(fmt(0))") ///
+    noobs nomtitle nonumber
+
+drop operoa_ratio
 
 
 ********************************************************************************
@@ -1112,7 +1137,7 @@ estadd loc firm_fe "Yes"
 estadd loc y_fe "No"	
 estadd loc cy_fe "Yes"	
 
-esttab b1_m1 b1_m2 b1_m3 b1_m4 b1_m5 b1_m6 b1_m7 b1_m8 using "TableB1_Cash_Covariates.tex", replace ///
+esttab b1_m1 b1_m2 b1_m3 b1_m4 b1_m5 b1_m6 b1_m7 b1_m8 using "Tables/TableB1_Cash_Covariates.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
     star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f) ///
     stats(N r2 r2_a firm_fe y_fe cy_fe, fmt(%9.0fc %9.3f %9.3f %9s %9s) ///
@@ -1140,7 +1165,7 @@ estadd loc firm_fe "Yes"
 estadd loc year_fe "Yes"
 estadd loc control "Yes"
 
-esttab b2_m1 b2_m2 b2_m3 using "TableB2_Cash_Lags.tex", replace ///
+esttab b2_m1 b2_m2 b2_m3 using "Tables/TableB2_Cash_Lags.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
     star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f) ///
     stats(N r2 r2_a control firm_fe year_fe, fmt(%9.0fc %9.3f %9.3f %9s %9s) ///
@@ -1165,7 +1190,7 @@ est sto b3_m3
 estadd loc firm_fe "Yes"
 estadd loc cyi_fe "Yes"	
 
-esttab b3_m1 b3_m2 b3_m3 using "TableB3_Cash_CYI_FE.tex", replace ///
+esttab b3_m1 b3_m2 b3_m3 using "Tables/TableB3_Cash_CYI_FE.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
     star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f) ///
     stats(N r2 r2_a firm_fe cyi_fe, fmt(%9.0fc %9.3f %9.3f %9s %9s) ///
@@ -1190,7 +1215,7 @@ est sto b4_m3
 estadd loc firm_fe "Yes"
 estadd loc year_fe "Yes"
 
-esttab b4_m1 b4_m2 b4_m3 using "TableB4_Cash_AltDepreciation.tex", replace ///
+esttab b4_m1 b4_m2 b4_m3 using "Tables/TableB4_Cash_AltDepreciation.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
     star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f) ///
     stats(N r2 r2_a firm_fe year_fe, fmt(%9.0fc %9.3f %9.3f %9s %9s) ///
@@ -1222,7 +1247,7 @@ est sto b5_m4
 estadd loc firm_fe "Yes"
 estadd loc year_fe "Yes"
 
-esttab b5_m1 b5_m2 b5_m3 b5_m4 using "TableB5_Cash_Hedging.tex", replace ///
+esttab b5_m1 b5_m2 b5_m3 b5_m4 using "Tables/TableB5_Cash_Hedging.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
     star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f) ///
     stats(N r2 r2_a firm_fe year_fe, fmt(%9.0fc %9.3f %9.3f %9s %9s) ///
@@ -1285,7 +1310,7 @@ estadd loc firm_fe "Yes"
 estadd loc y_fe "No"	
 estadd loc cy_fe "Yes"	
 
-esttab c1_m1 c1_m2 c1_m3 c1_m4 c1_m5 c1_m6 c1_m7 c1_m8 using "TableC1_Investment_Covariates.tex", replace ///
+esttab c1_m1 c1_m2 c1_m3 c1_m4 c1_m5 c1_m6 c1_m7 c1_m8 using "Tables/TableC1_Investment_Covariates.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
     star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f) ///
     stats(N r2 r2_a firm_fe y_fe cy_fe, fmt(%9.0fc %9.3f %9.3f %9s %9s) ///
@@ -1313,7 +1338,7 @@ estadd loc firm_fe "Yes"
 estadd loc year_fe "Yes"
 estadd loc control "Yes"
 
-esttab c2_m1 c2_m2 c2_m3 using "TableC2_Investment_Lags.tex", replace ///
+esttab c2_m1 c2_m2 c2_m3 using "Tables/TableC2_Investment_Lags.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
     star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f) ///
     stats(N r2 r2_a control firm_fe year_fe, fmt(%9.0fc %9.3f %9.3f %9s %9s) ///
@@ -1338,7 +1363,7 @@ est sto c3_m3
 estadd loc firm_fe "Yes"
 estadd loc cyi_fe "Yes"
 
-esttab c3_m1 c3_m2 c3_m3 using "TableC3_Investment_CYI_FE.tex", replace ///
+esttab c3_m1 c3_m2 c3_m3 using "Tables/TableC3_Investment_CYI_FE.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
     star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f) ///
     stats(N r2 r2_a firm_fe cyi_fe, fmt(%9.0fc %9.3f %9.3f %9s %9s) ///
@@ -1358,7 +1383,7 @@ est sto c4_m2
 estadd loc firm_fe "Yes"
 estadd loc year_fe "Yes"
 
-esttab c4_m1 c4_m2 using "TableC4_Investment_AltDepreciation.tex", replace ///
+esttab c4_m1 c4_m2 using "Tables/TableC4_Investment_AltDepreciation.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
     star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f) ///
     stats(N r2 r2_a firm_fe year_fe, fmt(%9.0fc %9.3f %9.3f %9s %9s) ///
@@ -1390,7 +1415,7 @@ est sto c5_m4
 estadd loc firm_fe "Yes"
 estadd loc year_fe "Yes"
 
-esttab c5_m1 c5_m2 c5_m3 c5_m4 using "TableC5_Investment_Hedging.tex", replace ///
+esttab c5_m1 c5_m2 c5_m3 c5_m4 using "Tables/TableC5_Investment_Hedging.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
     star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f) ///
     stats(N r2 r2_a firm_fe year_fe, fmt(%9.0fc %9.3f %9.3f %9s %9s) ///
@@ -1404,7 +1429,7 @@ esttab c5_m1 c5_m2 c5_m3 c5_m4 using "TableC5_Investment_Hedging.tex", replace /
 * Note: This section requires the locproj package
 * ssc install locproj
 
-cap mkdir "Local Projections"
+* Figures/ already created at start
 
 * Generate interaction variables for local projections
 gen FXBH_dlndtcr = FXBHassl * dlndtcr
@@ -1421,8 +1446,8 @@ locproj operoa FXBHassl FXBH_dlndtcr FXBH_sp4imp L1_FXBH_dlndtcr L1_FXBH_sp4imp 
     met(reghdfe) absorb(id yc) vce(cluster c) ///
     yl(2) sl(2) h(0/8)
 graph rename Graph operating_income_irf, replace
-graph save "Local Projections/operating_income_irf.gph", replace
-graph export "Local Projections/operating_income_irf.pdf", replace
+graph save "Figures/operating_income_irf.gph", replace
+graph export "Figures/operating_income_irf.pdf", replace
 
 *------------------------------------------------------------------------------
 * Non-operating Income IRF
@@ -1431,8 +1456,8 @@ locproj nonopincome FXBHassl FXBH_dlndtcr FXBH_sp4imp L1_FXBH_dlndtcr L1_FXBH_sp
     met(reghdfe) absorb(id yc) vce(cluster c) ///
     yl(2) sl(2) h(0/8)
 graph rename Graph nonoperating_income_irf, replace
-graph save "Local Projections/nonoperating_income_irf.gph", replace
-graph export "Local Projections/nonoperating_income_irf.pdf", replace
+graph save "Figures/nonoperating_income_irf.gph", replace
+graph export "Figures/nonoperating_income_irf.pdf", replace
 
 *------------------------------------------------------------------------------
 * Log Sales IRF
@@ -1441,8 +1466,8 @@ locproj lnsales FXBHassl FXBH_dlndtcr FXBH_sp4imp L1_FXBH_dlndtcr L1_FXBH_sp4imp
     met(reghdfe) absorb(id yc) vce(cluster c) ///
     yl(2) sl(2) h(0/8)
 graph rename Graph log_sales_irf, replace
-graph save "Local Projections/log_sales_irf.gph", replace
-graph export "Local Projections/log_sales_irf.pdf", replace
+graph save "Figures/log_sales_irf.gph", replace
+graph export "Figures/log_sales_irf.pdf", replace
 
 *------------------------------------------------------------------------------
 * Sales-to-Assets Ratio IRF
@@ -1451,8 +1476,8 @@ locproj sales2al FXBHassl FXBH_dlndtcr FXBH_sp4imp L1_FXBH_dlndtcr L1_FXBH_sp4im
     met(reghdfe) absorb(id yc) vce(cluster c) ///
     yl(2) sl(2) h(0/8)
 graph rename Graph sales_assets_irf, replace
-graph save "Local Projections/sales_assets_irf.gph", replace
-graph export "Local Projections/sales_assets_irf.pdf", replace
+graph save "Figures/sales_assets_irf.gph", replace
+graph export "Figures/sales_assets_irf.pdf", replace
 
 
 ********************************************************************************
