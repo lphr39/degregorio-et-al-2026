@@ -10,6 +10,14 @@
 
 This appendix provides the Stata code to replicate all tables and figures in the paper *"Currency Mismatches in Emerging Markets: Effects on Corporate Liquidity, Investment Dynamics and Performance"*.
 
+### Outputs
+
+The replication creates:
+
+- `replication_log.txt` — log of the full run
+- `Tables/` — LaTeX `.tex` tables (Table1–4, TableA2, TableB1–B5, TableC1–C5)
+- `Figures/` — PDF and `.gph` local projection graphs (Appendix D)
+
 ### Required Files
 
 The replication requires the following data files in the `data/` folder:
@@ -106,6 +114,14 @@ gen totiss = issfor + isslocalcurr
 
 * Proportion of Foreign Issuance
 gen propFX = issfor / totiss
+gen propDC = isslocalcurr / totiss
+
+* Classification by FX/LC issuance
+gen FXLC = 3 if propFX > 0.1
+replace FXLC = 2 if propDC > 0.49991
+replace FXLC = 1 if propFX == .
+replace propFX = 0 if propFX == .
+drop totiss
 
 * Hard currency and local currency issuance
 gen isshard = issfor
@@ -158,7 +174,9 @@ label variable ltdtd "LTD (Long-Term Debt / Total Debt)"
 
 * Sales to Assets ratio - STA
 gen sales2a = sales / assets
+gen sales2al = sales / assetsl
 label variable sales2a "STA (Sales/Assets)"
+winsor2 qtob sales2a sales2al, replace cuts(1 99) trim
 ```
 
 #### Dependent Variables
@@ -169,12 +187,15 @@ label variable sales2a "STA (Sales/Assets)"
 *------------------------------------------------------------------------------
 
 * Delta Cash (Change in Cash Holdings) - Main dependent variable for Table 1
+gen cash2a = cashst / assets
 gen cash2al = cashst / assetsl
 gen dcash = (cashst - cashstl) / assetsl
 label variable dcash "ΔCash (Change in Cash Holdings)"
 
 * Investment (Capital Expenditures) - Main dependent variable for Table 2
+gen capex2a = abs(capex / assets)
 gen capex2al = abs(capex / assetsl)
+replace capex2a = 0 if capex2a == .
 replace capex2al = 0 if capex2al == .
 label variable capex2al "Inv (Investment / Lagged Assets)"
 ```
@@ -209,18 +230,42 @@ The **risk-adjusted spread** is a key moderating variable that captures the cost
 gen spread2 = (tasaborrow - baa) / 100
 
 * Risk-adjusted spread: Spread / Implied Volatility
+replace impliedvolatility = impliedvolatility / 100
 gen spread2imp = spread2 / impliedvolatility
 replace spread2imp = 0 if spread2imp == .
 
 * Generate demeaned spread (sp4imp) - Main spread variable in paper
-reghdfe dcash FXBHassl fxalspread2imp DCBassl cfo2al osources2al size qtob debt2a ltdtd sales2a, ///
-    absorb(id yc) cluster(c)
-
+* First run a regression to define the sample; then country-level and global demeaning
+reghdfe dcash FXBHassl fxalspread2imp DCBassl cfo2al osources2al size qtob debt2a ltdtd sales2a, absorb(id yc) cluster(c)
+bys pais: egen sp_mean2 = mean(spread2imp) if e(sample)
+* ... then global demeaning to create sp4imp
 egen sp_mean2 = mean(spread2imp) if e(sample)
 gen sp4imp = spread2imp - sp_mean2 if e(sample)
 replace sp4imp = 0 if sp4imp == . & e(sample)
-drop sp_mean2
 label variable sp4imp "Sp (Demeaned Risk-Adjusted Spread)"
+```
+
+#### Section 2: Additional Variables (for Tables 3, 4 and Appendices)
+
+After saving the cleaned dataset and reloading, the do-file creates variables used in Tables 3–4 and appendices:
+
+```stata
+* FXDep: Demeaned log change in real exchange rate
+egen mdepr = mean(lndtcr)
+gen dlndtcr = lndtcr - mdepr
+
+* operoa: Operating Income (before scaling to %)
+gen operoa = operatingmargin * assetturnover
+label variable operoa "Operating Income"
+replace operoa = operoa * 100
+winsor2 operoa, replace cuts(1 99) trim
+
+* nonopincome: Non-operating Income = pretaxroa - operoa
+gen nonopincome = (pretaxroa - operoa) if !missing(pretaxroa) & !missing(operoa)
+winsor2 nonopincome, replace cuts(1 99) trim
+
+* T.Inv, ΔWC, lnsales, cursdepre (depreciation dummy), cye (country-year-industry)
+* Sample indicators: samp (cash), sampi (investment)
 ```
 
 ---
@@ -341,11 +386,11 @@ This table examines how firms adjust investment in response to foreign currency 
 ********************************************************************************
 
 *------------------------------------------------------------------------------
-* Column 1: Total sample - No interactions
+* Column 1: Total sample - No interactions (samp for sample consistency)
 *------------------------------------------------------------------------------
 reghdfe capex2al FXBHassl l.FXBHassl DCBassl l.DCBassl cfo2al l.cfo2al ///
     osources2al l.osources2al forev2al l.forev2al netderiv2al l.netderiv2al ///
-    l.size l.qtob l.debt2a l.ltdtd l.sales2a l.gdpgrowth l.privcreditovgdp l.lngdp, ///
+    l.size l.qtob l.debt2a l.ltdtd l.sales2a l.gdpgrowth l.privcreditovgdp l.lngdp samp, ///
     absorb(id year c) cluster(c) 
 est sto t2_m1
 estadd loc firm_fe "Yes"
@@ -358,7 +403,7 @@ reghdfe capex2al c.FXBHassl##c.dlndtcr c.FXBHassl##c.sp4imp ///
     c.l.FXBHassl##c.l.dlndtcr c.l.FXBHassl##c.l.sp4imp ///
     DCBassl l.DCBassl cfo2al l.cfo2al osources2al l.osources2al ///
     l.forev2al l.netderiv2al l.size l.qtob l.debt2a l.ltdtd l.sales2a ///
-    l.gdpgrowth l.privcreditovgdp l.lngdp, ///
+    l.gdpgrowth l.privcreditovgdp l.lngdp samp, ///
     absorb(id year c) cluster(c) 
 est sto t2_m2
 estadd loc firm_fe "Yes"
@@ -379,12 +424,22 @@ estadd loc firm_fe "Yes"
 estadd loc year_fe "Yes"
 
 *------------------------------------------------------------------------------
+* Columns 4-9: Heterogeneity (crinv, sizebi, exfinbi) - use l.c.dlndtcr in lagged interactions
+*------------------------------------------------------------------------------
+* (Columns 4-9 omitted for brevity; same structure as Table 1 heterogeneity)
+
+*------------------------------------------------------------------------------
 * Export Table 2
 *------------------------------------------------------------------------------
 esttab t2_m1 t2_m2 t2_m3 t2_m4 t2_m5 t2_m6 t2_m7 t2_m8 t2_m9 ///
     using "Tables/Table2_Investment.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
     star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f) ///
+    keep(FXBHassl c.FXBHassl#c.dlndtcr c.FXBHassl#c.sp4imp c.FXBHassl#c.dlndtcr#c.sp4imp ///
+         L.FXBHassl cL.FXBHassl#cL.dlndtcr cL.FXBHassl#cL.sp4imp cL.FXBHassl#cL.dlndtcr#cL.sp4imp ///
+         DCBassl L.DCBassl cfo2al L.cfo2al osources2al L.osources2al L.forev2al L.netderiv2al ///
+         L.qtob L.size L.debt2a L.ltdtd L.sales2a L.gdpgrowth L.privcreditovgdp L.lngdp) ///
+    drop(oL.FXBHassl) ///
     stats(N r2 r2_a firm_fe year_fe, fmt(%9.0fc %9.3f %9.3f %9s %9s) ///
           label("Observations" "R-squared" "Adj. R-squared" "Firm FE" "Year FE"))
 ```
@@ -397,41 +452,27 @@ esttab t2_m1 t2_m2 t2_m3 t2_m4 t2_m5 t2_m6 t2_m7 t2_m8 t2_m9 ///
 
 **Dependent variable**: T.Inv (Total Investment = Capex + R&D + Acquisitions - Sale of Fixed Assets)
 
-Following Richardson (2006), we use a broader measure of investment that includes R&D expenditures and acquisitions.
+Following Richardson (2006). The variable `tinv2al` is created in Section 2 (with rd2al, acqu2al, sfa2al).
 
 ```stata
 ********************************************************************************
-* TABLE 3 PANEL A: Total Investment
+* TABLE 3 PANEL A: Total Investment (tinv2al)
 ********************************************************************************
 
-* Total Investment Definition
-gen rd2al = rdexp / assetsl
-gen acqu2al = abs(acquisitionofbusiness) / assetsl
-replace acqu2al = 0 if acqu2al == .
-gen sfa2al = saleoffixedassets / assetsl
-replace sfa2al = 0 if sfa2al == .
-
-* T.Inv = Capex + R&D + Acquisitions - Sale of Fixed Assets
-gen tinv2al = capex2al + rd2al + acqu2al - sfa2al
-winsor2 tinv2al, replace cuts(1 99) trim
-label variable tinv2al "T.Inv (Total Investment)"
-
 *------------------------------------------------------------------------------
-* Regressions for Panel A
+* Regressions for Panel A (9 columns; col 1 uses samp)
 *------------------------------------------------------------------------------
-reghdfe tinv2al c.FXBHassl##c.dlndtcr##c.sp4imp ///
-    c.l.FXBHassl##c.l.dlndtcr##c.l.sp4imp ///
-    DCBassl l.DCBassl cfo2al l.cfo2al osources2al l.osources2al ///
-    forev2al l.forev2al netderiv2al l.netderiv2al ///
-    l.size l.qtob l.debt2a l.ltdtd l.sales2a ///
-    l.gdpgrowth l.privcreditovgdp l.lngdp, ///
-    absorb(id year c) cluster(c) 
-est sto t3a_m3
+reghdfe tinv2al FXBHassl l.FXBHassl DCBassl l.DCBassl ... samp, absorb(id year c) cluster(c)
+est sto t3a_m1
+* ... t3a_m2 (two-way), t3a_m3 (triple), t3a_m4-t3a_m9 (heterogeneity)
 
 esttab t3a_m1 t3a_m2 t3a_m3 t3a_m4 t3a_m5 t3a_m6 t3a_m7 t3a_m8 t3a_m9 ///
     using "Tables/Table3_PanelA_TotalInvestment.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
-    star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
+    star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f) ///
+    keep(FXBHassl dlndtcr sp4imp c.FXBHassl#c.dlndtcr c.FXBHassl#c.sp4imp c.FXBHassl#c.dlndtcr#c.sp4imp ///
+         L.FXBHassl L.dlndtcr L.sp4imp cL.FXBHassl#cL.dlndtcr cL.FXBHassl#cL.sp4imp cL.FXBHassl#cL.dlndtcr#cL.sp4imp) ///
+    drop(oL.FXBHassl) stats(N r2 r2_a firm_fe year_fe, ...)
 ```
 
 #### Panel B: Change in Working Capital
@@ -443,82 +484,50 @@ esttab t3a_m1 t3a_m2 t3a_m3 t3a_m4 t3a_m5 t3a_m6 t3a_m7 t3a_m8 t3a_m9 ///
 * TABLE 3 PANEL B: Change in Working Capital
 ********************************************************************************
 
-gen dwc2al = changesinworkingcapital / assetsl
-label variable dwc2al "ΔWC (Change in Working Capital)"
-
-reghdfe dwc2al c.FXBHassl##c.dlndtcr##c.sp4imp ///
-    c.l.FXBHassl##c.l.dlndtcr##c.l.sp4imp ///
-    DCBassl l.DCBassl cfo2al l.cfo2al osources2al l.osources2al ///
-    forev2al l.forev2al netderiv2al l.netderiv2al ///
-    l.size l.qtob l.debt2a l.ltdtd l.sales2a ///
-    l.gdpgrowth l.privcreditovgdp l.lngdp, ///
-    absorb(id year c) cluster(c) 
+* dwc2al created in Section 2. Panel B has 9 columns; col 1 uses samp.
+reghdfe dwc2al FXBHassl l.FXBHassl DCBassl l.DCBassl cfo2al l.cfo2al osources2al l.osources2al forev2al l.forev2al netderiv2al l.netderiv2al l.size l.qtob l.debt2a l.ltdtd l.sales2a l.gdpgrowth l.privcreditovgdp l.lngdp samp, absorb(id year c) cluster(c)
+est sto t3b_m1
+* ... t3b_m2 (two-way), t3b_m3 (triple), t3b_m4-t3b_m9 (heterogeneity)
 
 esttab t3b_m1 t3b_m2 t3b_m3 t3b_m4 t3b_m5 t3b_m6 t3b_m7 t3b_m8 t3b_m9 ///
     using "Tables/Table3_PanelB_WorkingCapital.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
-    star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
+    star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f) ///
+    keep(FXBHassl dlndtcr sp4imp ...) drop(oL.FXBHassl) stats(N r2 r2_a firm_fe year_fe, ...)
 ```
 
 ---
 
 ### Table 4: Operating Performance and Competitiveness
 
-This table examines the effects on operating performance (Operating Income, Non-operating Income) and competitiveness (Sales measures).
+Eight columns: Operating Income (1–2), Non-operating Income (3–4), Log Sales (5–6), Sales/Assets (7–8). Odd columns use double interactions; even columns use triple interaction. Variables `operoa`, `nonopincome`, `lnsales` are created in Section 2. Controls exclude TQ and sales2a.
 
 ```stata
 ********************************************************************************
-* TABLE 4: USD-denominated bond issuance, currency depreciations, and 
-*          competitiveness
+* TABLE 4: USD-denominated bond issuance, currency depreciations, competitiveness
+* Columns 1-2: operoa (double/triple) | 3-4: nonopincome | 5-6: lnsales | 7-8: sales2al
 ********************************************************************************
 
-* Operating ROA
-gen operoa = operatingmargin * assetturnover
-replace operoa = operoa * 100
-winsor2 operoa, replace cuts(1 99) trim
-label variable operoa "Operating Income"
+* Column 1: Operating Income - Double interactions
+reghdfe operoa c.FXBHassl##c.dlndtcr c.FXBHassl##c.sp4imp c.l.FXBHassl##c.l.dlndtcr c.l.FXBHassl##c.l.sp4imp l.DCBassl l.cfo2al l.osources2al l.forev2al l.netderiv2al l.size l.debt2al l.ltdtd l.gdpgrowth l.privcreditovgdp l.lngdp, absorb(year c id) cluster(c)
+est sto t4_m1
 
-* Log Sales
-gen lnsales = ln(sales) if sales > 0
-label variable lnsales "ln(Sales)"
-
-*------------------------------------------------------------------------------
-* Columns 1-2: Operating Income
-*------------------------------------------------------------------------------
-reghdfe operoa c.FXBHassl##c.dlndtcr##c.sp4imp ///
-    c.l.FXBHassl##c.l.dlndtcr##c.l.sp4imp ///
-    l.DCBassl l.cfo2al l.osources2al l.forev2al l.netderiv2al ///
-    l.size l.debt2al l.ltdtd l.gdpgrowth l.privcreditovgdp l.lngdp, ///
-    absorb(year c id) cluster(c)
+* Column 2: Operating Income - Triple interaction
+reghdfe operoa c.FXBHassl##c.dlndtcr##c.sp4imp c.l.FXBHassl##c.l.dlndtcr##c.l.sp4imp ...
 est sto t4_m2
 
-*------------------------------------------------------------------------------
-* Columns 3-4: Non-operating Income
-*------------------------------------------------------------------------------
-reghdfe nonopincome c.FXBHassl##c.dlndtcr##c.sp4imp ///
-    c.l.FXBHassl##c.l.dlndtcr##c.l.sp4imp ///
-    l.DCBassl l.cfo2al l.osources2al l.forev2al l.netderiv2al ///
-    l.size l.debt2al l.ltdtd l.gdpgrowth l.privcreditovgdp l.lngdp, ///
-    absorb(year c id) cluster(c)
-est sto t4_m4
+* Columns 3-4: Non-operating Income (double/triple)
+* Columns 5-6: Log Sales (double/triple)
+* Columns 7-8: Sales to Assets (double/triple)
 
-*------------------------------------------------------------------------------
-* Columns 5-6: Log Sales
-*------------------------------------------------------------------------------
-reghdfe lnsales c.FXBHassl##c.dlndtcr##c.sp4imp ///
-    c.l.FXBHassl##c.l.dlndtcr##c.l.sp4imp ///
-    l.DCBassl l.cfo2al l.osources2al l.forev2al l.netderiv2al ///
-    l.size l.debt2al l.ltdtd l.gdpgrowth l.privcreditovgdp l.lngdp, ///
-    absorb(year c id) cluster(c)
-est sto t4_m6
-
-*------------------------------------------------------------------------------
-* Export Table 4
-*------------------------------------------------------------------------------
 esttab t4_m1 t4_m2 t4_m3 t4_m4 t4_m5 t4_m6 t4_m7 t4_m8 ///
     using "Tables/Table4_Competitiveness.tex", replace ///
     fragment booktabs label nonotes noomit nomtitles collabels(none) ///
-    star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
+    star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f) ///
+    keep(FXBHassl sp4imp dlndtcr c.FXBHassl#c.dlndtcr c.FXBHassl#c.sp4imp c.FXBHassl#c.dlndtcr#c.sp4imp ///
+         L.FXBHassl L.sp4imp L.dlndtcr cL.FXBHassl#cL.dlndtcr cL.FXBHassl#cL.sp4imp cL.FXBHassl#cL.dlndtcr#cL.sp4imp ///
+         L.DCBassl L.cfo2al L.osources2al L.forev2al L.netderiv2al L.size L.debt2al L.ltdtd ...) ///
+    drop(oL.FXBHassl) stats(N r2 r2_a firm_fe year_fe, ...)
 ```
 
 ---
@@ -549,33 +558,7 @@ esttab t4_m1 t4_m2 t4_m3 t4_m4 t4_m5 t4_m6 t4_m7 t4_m8 ///
 
 ### Table A2: Summary Statistics
 
-The paper reports summary statistics in **two panels**: (1) **General** — full sample; (2) **By country** — mean, S.D., and N per country. The do-file writes each panel to a separate `.tex` file.
-
-```stata
-********************************************************************************
-* APPENDIX A: Summary Statistics (Table A2)
-* Panel 1: General (full sample). Panel 2: By country.
-********************************************************************************
-
-gen operoa_ratio = operoa / 100
-
-* Panel 1 - General (full sample)
-estpost summarize cash2al capex2al cfo2al operoa_ratio roal FXBHassl DCBassl ///
-    osources2al size qtob debt2a ltdtd sales2a dlndtcr sp4imp, detail
-
-esttab using "Tables/TableA2_SummaryStats_General.tex", replace ///
-    cells("count mean sd min p25 p50 p75 max") noobs nomtitle nonumber
-
-* Panel 2 - By country (mean, sd, N per country)
-estpost tabstat cash2al capex2al cfo2al operoa_ratio roal FXBHassl DCBassl ///
-    osources2al size qtob debt2a ltdtd sales2a, ///
-    by(pais) stat(mean sd count) nototal columns(statistics)
-
-esttab using "Tables/TableA2_SummaryStats_ByCountry.tex", replace ///
-    cells("mean(fmt(3)) sd(fmt(3)) count(fmt(0))") noobs nomtitle nonumber
-
-drop operoa_ratio
-```
+The do-file writes **Table A2** to `Tables/TableA2_SummaryStats.tex` with **three panels** in the paper format: **Panel A** (Latin America, Europe, Africa — mean, S.D. by country), **Panel B** (Asia and total sample), **Panel C** (time-series: Sp, FXDep). Uses all variables from the paper (dcash, capex2al, tinv2al, dwc2al, operoa_ratio, nonopincome, lnsales, FXBHassl, DCBassl, cfo2al, osources2al, forev2al, netderiv2al, qtob, size, debt2a, ltdtd, sales2a, gdpgrowth, privcreditovgdp, lngdp). Custom file-writing with `file open/write/close`.
 
 ---
 
@@ -626,126 +609,71 @@ est sto b1_m8
 
 esttab b1_m1 b1_m2 b1_m3 b1_m4 b1_m5 b1_m6 b1_m7 b1_m8 ///
     using "Tables/TableB1_Cash_Covariates.tex", replace ///
-    fragment booktabs label nonotes noomit nomtitles collabels(none) ///
-    star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
+    fragment booktabs label nonotes noomit ///
+    mtitles("(1)" "(2)" "(3)" "(4)" "(5)" "(6)" "(7)" "(8)") ///
+    star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f) ///
+    stats(N r2 r2_a firm_fe y_fe cy_fe, ...)
 ```
 
 #### Table B2: Introducing Lags
 
-Adds lags (and second lags) of FXBHA, DCBA, CFO, and other sources.
+Nine columns: Col 1–3 (total sample, L0–L2 lags, no/two-way/triple interactions); Col 4–9 (heterogeneity by crinv, sizebi, exfinbi). Uses `absorb(id year)` for heterogeneity columns.
 
 ```stata
-* Table B2: Cash holding (Introducing Lags)
-reghdfe dcash FXBHassl l.FXBHassl l2.FXBHassl DCBassl l.DCBassl l2.DCBassl ///
-    cfo2al l.cfo2al l2.cfo2al osources2al l.osources2al l2.osources2al ///
-    forev2al netderiv2al size qtob debt2a ltdtd sales2a gdpgrowth privcreditovgdp lngdp, ///
-    absorb(id year c) cluster(c)
-est sto b2_m1
-
-reghdfe dcash c.FXBHassl##c.dlndtcr c.FXBHassl##c.sp4imp ///
-    l.(c.FXBHassl##c.dlndtcr c.FXBHassl##c.sp4imp) l2.(c.FXBHassl##c.dlndtcr c.FXBHassl##c.sp4imp) ///
-    DCBassl l.DCBassl l2.DCBassl cfo2al l.cfo2al l2.cfo2al osources2al l.osources2al l2.osources2al ///
-    forev2al netderiv2al size qtob debt2a ltdtd sales2a gdpgrowth privcreditovgdp lngdp, ///
-    absorb(id year c) cluster(c)
-est sto b2_m2
-
-reghdfe dcash c.FXBHassl##c.dlndtcr##c.sp4imp ///
-    l.(c.FXBHassl##c.dlndtcr##c.sp4imp) l2.(c.FXBHassl##c.dlndtcr##c.sp4imp) ///
-    DCBassl l.DCBassl l2.DCBassl cfo2al l.cfo2al l2.cfo2al osources2al l.osources2al l2.osources2al ///
-    forev2al netderiv2al size qtob debt2a ltdtd sales2a gdpgrowth privcreditovgdp lngdp, ///
-    absorb(id year c) cluster(c)
-est sto b2_m3
-
-esttab b2_m1 b2_m2 b2_m3 using "Tables/TableB2_Cash_Lags.tex", replace ///
-    fragment booktabs label nonotes noomit nomtitles collabels(none) ///
-    star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
+* Table B2: Cash holding (Introducing Lags) - 9 columns
+* Col 1: L0,L1,L2 no interactions | Col 2: two-way | Col 3: triple
+* Col 4-9: heterogeneity (crinv, sizebi, exfinbi)
+esttab b2_m1 b2_m2 b2_m3 b2_m4 b2_m5 b2_m6 b2_m7 b2_m8 b2_m9 ///
+    using "Tables/TableB2_Cash_Lags.tex", replace ///
+    mtitles("(1)" "(2)" "(3)" "(4)" "(5)" "(6)" "(7)" "(8)" "(9)") ///
+    drop(oL.FXBHassl) stats(N r2 r2_a control firm_fe year_fe, ...)
 ```
 
 #### Table B3: Country-Year-Industry Fixed Effects
 
+Nine columns. `cye = group(pais year economic)`. Col 1–2 use `samp`; Col 3 omits netderiv2al; Col 4–9 heterogeneity; Col 8–9 use `[pw=w_c]` for exfinbi.
+
 ```stata
-*==============================================================================
-* Table B3: Cash holding (Country-Year-Industry Fixed Effects)
-*==============================================================================
-
-egen cye = group(pais year economic)  
-
-reghdfe dcash FXBHassl DCBassl cfo2al osources2al forev2al netderiv2al ///
-    size qtob debt2a ltdtd sales2a, absorb(id cye) cluster(c) 
-est sto b3_m1
-
-reghdfe dcash c.FXBHassl##c.sp4imp c.FXBHassl##c.dlndtcr DCBassl cfo2al ///
-    osources2al forev2al netderiv2al size qtob debt2a ltdtd sales2a, ///
-    absorb(id cye) cluster(c) 
-est sto b3_m2
-
-reghdfe dcash c.FXBHassl##c.dlndtcr##c.sp4imp DCBassl cfo2al forev2al ///
-    netderiv2al osources2al size qtob debt2a ltdtd sales2a, ///
-    absorb(id cye) cluster(c) 
-est sto b3_m3
-
-esttab b3_m1 b3_m2 b3_m3 using "Tables/TableB3_Cash_CYI_FE.tex", replace ///
-    fragment booktabs label nonotes noomit nomtitles collabels(none) ///
-    star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
+* Table B3: Cash holding (Country-Year-Industry Fixed Effects) - 9 columns
+egen cye = group(pais year economic)
+* Col 1: FXBHA + samp | Col 2: two-way + samp | Col 3: triple (no netderiv2al)
+* Col 4-5: crinv | Col 6-7: sizebi | Col 8-9: exfinbi [pw=w_c]
+esttab b3_m1 b3_m2 b3_m3 b3_m4 b3_m5 b3_m6 b3_m7 b3_m8 b3_m9 ///
+    using "Tables/TableB3_Cash_CYI_FE.tex", replace ///
+    mtitles("(1)" "(2)" "(3)" "(4)" "(5)" "(6)" "(7)" "(8)" "(9)") ///
+    stats(N r2 r2_a firm_fe cyi_fe, ...)
 ```
 
 #### Table B4: Alternative Depreciation (Dummy)
 
-Uses a depreciation dummy instead of the continuous FXDep measure.
+Uses `cursdepre` instead of continuous FXDep. Nine columns: Col 1–3 (total sample); Col 4–9 (heterogeneity).
 
 ```stata
-* Table B4: Cash holding (Alternative Depreciation Definition - Dummy)
-reghdfe dcash FXBHassl DCBassl cfo2al osources2al forev2al sp4imp cursdepre ///
-    netderiv2al size qtob debt2a ltdtd sales2a gdpgrowth privcreditovgdp lngdp, ///
-    absorb(id year c) cluster(c)
-est sto b4_m1
-
-reghdfe dcash c.FXBHassl##c.cursdepre c.FXBHassl##c.sp4imp DCBassl cfo2al ///
-    osources2al forev2al netderiv2al size qtob debt2a ltdtd sales2a ///
-    gdpgrowth privcreditovgdp lngdp, absorb(id year c) cluster(c)
-est sto b4_m2
-
-reghdfe dcash c.FXBHassl##c.cursdepre##c.sp4imp DCBassl cfo2al osources2al ///
-    forev2al netderiv2al size qtob debt2a ltdtd sales2a gdpgrowth privcreditovgdp lngdp, ///
-    absorb(id year c) cluster(c)
-est sto b4_m3
-
-esttab b4_m1 b4_m2 b4_m3 using "Tables/TableB4_Cash_AltDepreciation.tex", replace ///
-    fragment booktabs label nonotes noomit nomtitles collabels(none) ///
-    star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
+* Table B4: Cash holding (Alternative Depreciation Definition - Dummy) - 9 columns
+esttab b4_m1 b4_m2 b4_m3 b4_m4 b4_m5 b4_m6 b4_m7 b4_m8 b4_m9 ///
+    using "Tables/TableB4_Cash_AltDepreciation.tex", replace ///
+    mtitles("(1)" "(2)" "(3)" "(4)" "(5)" "(6)" "(7)" "(8)" "(9)") ///
+    stats(N r2 r2_a firm_fe year_fe, ...)
 ```
 
 #### Table B5: Hedging Heterogeneity
 
+Four columns: Col 1–2 (fderiv==0, two-way/triple); Col 3–4 (fderiv==1). No `netderiv2al` in subsamples.
+
 ```stata
-*==============================================================================
-* Table B5: Cash holding and hedging derivatives heterogeneity
-*==============================================================================
-
-* Define derivatives user indicator
-gen deriv = 0
-replace deriv = 1 if tliabderiv2al != 0
-replace deriv = 1 if tassetderiv2al != 0
-egen mderiv = mean(deriv), by(id)
-gen fderiv = 0
-replace fderiv = 1 if mderiv != 0
-label variable fderiv "Uses Derivatives (1=Yes)"
-
-* No derivatives
-reghdfe dcash c.FXBHassl##c.dlndtcr##c.sp4imp DCBassl cfo2al osources2al forev2al ///
-    size qtob debt2a ltdtd sales2a gdpgrowth privcreditovgdp lngdp ///
-    if fderiv==0, absorb(id year c) cluster(c) 
+* Table B5: Cash holding and hedging derivatives heterogeneity - 4 columns
+* fderiv: Uses Derivatives (1=Yes), defined from tliabderiv2al/tassetderiv2al
+reghdfe dcash c.FXBHassl##c.dlndtcr c.FXBHassl##c.sp4imp ... if fderiv==0, absorb(id year c) cluster(c)
+est sto b5_m1
+reghdfe dcash c.FXBHassl##c.dlndtcr##c.sp4imp ... if fderiv==0, absorb(id year c) cluster(c)
 est sto b5_m2
-
-* Uses derivatives
-reghdfe dcash c.FXBHassl##c.dlndtcr##c.sp4imp DCBassl cfo2al osources2al forev2al ///
-    size qtob debt2a ltdtd sales2a gdpgrowth privcreditovgdp lngdp ///
-    if fderiv==1, absorb(id year c) cluster(c) 
+reghdfe dcash c.FXBHassl##c.dlndtcr c.FXBHassl##c.sp4imp ... if fderiv==1, absorb(id year c) cluster(c)
+est sto b5_m3
+reghdfe dcash c.FXBHassl##c.dlndtcr##c.sp4imp ... if fderiv==1, absorb(id year c) cluster(c)
 est sto b5_m4
 
 esttab b5_m1 b5_m2 b5_m3 b5_m4 using "Tables/TableB5_Cash_Hedging.tex", replace ///
-    fragment booktabs label nonotes noomit nomtitles collabels(none) ///
-    star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
+    mtitles("(1)" "(2)" "(3)" "(4)") stats(N r2 r2_a firm_fe year_fe, ...)
 ```
 
 ---
@@ -754,92 +682,67 @@ esttab b5_m1 b5_m2 b5_m3 b5_m4 using "Tables/TableB5_Cash_Hedging.tex", replace 
 
 #### Table C1: Sequential Covariates
 
+Eight columns: Col 1 (FXBHA + L.FXBHA + sampi); Col 2–3 (two-way/triple); Col 4–7 (add DCBA, CFO, Ofunds; FRev, NDer; firm controls; macro); Col 8 (Country-Year FE).
+
 ```stata
-*==============================================================================
-* Table C1: Investment (introducing covariates sequentially)
-*==============================================================================
-
-reghdfe capex2al FXBHassl l.FXBHassl sampi, absorb(id year) cluster(c) 
+* Table C1: Investment (introducing covariates sequentially) - 8 columns
+reghdfe capex2al FXBHassl l.FXBHassl sampi, absorb(id year) cluster(c)
 est sto c1_m1
-
-reghdfe capex2al c.FXBHassl##c.dlndtcr##c.sp4imp ///
-    c.l.FXBHassl##l.c.dlndtcr##c.l.sp4imp, absorb(id year) cluster(c) 
-est sto c1_m3
-
-reghdfe capex2al c.FXBHassl##c.dlndtcr##c.sp4imp ///
-    c.l.FXBHassl##l.c.dlndtcr##c.l.sp4imp ///
-    DCBassl l.DCBassl cfo2al l.cfo2al osources2al l.osources2al ///
-    l.forev2al l.netderiv2al l.size l.qtob l.debt2a l.ltdtd l.sales2a ///
-    gdpgrowth privcreditovgdp lngdp, absorb(id year) cluster(c) 
-est sto c1_m7
-
+* Col 2: two-way | Col 3: triple | Col 4-7: sequential covariates | Col 8: absorb(id yc)
 esttab c1_m1 c1_m2 c1_m3 c1_m4 c1_m5 c1_m6 c1_m7 c1_m8 ///
     using "Tables/TableC1_Investment_Covariates.tex", replace ///
-    fragment booktabs label nonotes noomit nomtitles collabels(none) ///
-    star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
+    mtitles("(1)" "(2)" "(3)" "(4)" "(5)" "(6)" "(7)" "(8)") ///
+    drop(oL.FXBHassl) stats(N r2 r2_a firm_fe y_fe cy_fe, ...)
 ```
 
 #### Table C2: Introducing Additional Lags
 
-Adds second and third lags of FXBHA, DCBA, CFO, and other sources (investment sample).
+Nine columns: L0–L3 lags. Col 1–3 (total sample); Col 4–9 (heterogeneity by crinv, sizebi, exfinbi).
 
 ```stata
-* Table C2: Investment (Introducing Additional Lags)
-reghdfe capex2al FXBHassl l.FXBHassl l2.FXBHassl l3.FXBHassl DCBassl l.DCBassl l2.DCBassl l3.DCBassl ///
-    cfo2al l.cfo2al l2.cfo2al l3.cfo2al osources2al l.osources2al l2.osources2al l3.osources2al ///
-    l.forev2al l.netderiv2al l.size l.qtob l.debt2a l.ltdtd l.sales2a l.gdpgrowth l.privcreditovgdp l.lngdp, ///
-    absorb(id year c) cluster(c)
-est sto c2_m1
-* ... c2_m2, c2_m3 (two- and three-way interactions with lags)
-esttab c2_m1 c2_m2 c2_m3 using "Tables/TableC2_Investment_Lags.tex", replace ///
-    fragment booktabs label nonotes noomit nomtitles collabels(none) ///
-    star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
+* Table C2: Investment (Introducing Additional Lags) - 9 columns
+esttab c2_m1 c2_m2 c2_m3 c2_m4 c2_m5 c2_m6 c2_m7 c2_m8 c2_m9 ///
+    using "Tables/TableC2_Investment_Lags.tex", replace ///
+    mtitles("(1)" "(2)" "(3)" "(4)" "(5)" "(6)" "(7)" "(8)" "(9)") ///
+    drop(oL.FXBHassl) stats(N r2 r2_a control firm_fe year_fe, ...)
 ```
 
 #### Table C3: Country-Year-Industry Fixed Effects
 
-Investment regressions with country–year–industry FE instead of year FE.
+Nine columns. `cye = group(pais year economic)`. Col 1–2 use `samp`; Col 6–9 add `l.FXBHassl` for sizebi/exfinbi subsamples.
 
 ```stata
-* Table C3: Investment (Country-Year-Industry Fixed Effects)
-reghdfe capex2al FXBHassl l.FXBHassl DCBassl l.DCBassl cfo2al l.cfo2al osources2al l.osources2al ///
-    forev2al l.forev2al netderiv2al l.netderiv2al l.size l.qtob l.debt2a l.ltdtd l.sales2a, ///
-    absorb(id cye) cluster(c)
-est sto c3_m1
-* ... c3_m2, c3_m3 (interactions; absorb id cye)
-esttab c3_m1 c3_m2 c3_m3 using "Tables/TableC3_Investment_CYI_FE.tex", replace ///
-    fragment booktabs label nonotes noomit nomtitles collabels(none) ///
-    star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
+* Table C3: Investment (Country-Year-Industry Fixed Effects) - 9 columns
+esttab c3_m1 c3_m2 c3_m3 c3_m4 c3_m5 c3_m6 c3_m7 c3_m8 c3_m9 ///
+    using "Tables/TableC3_Investment_CYI_FE.tex", replace ///
+    mtitles("(1)" "(2)" "(3)" "(4)" "(5)" "(6)" "(7)" "(8)" "(9)") ///
+    drop(oL.FXBHassl) stats(N r2 r2_a firm_fe cyi_fe, ...)
 ```
 
 #### Table C4: Alternative Depreciation (Dummy)
 
-Investment regressions using a depreciation dummy instead of continuous FXDep.
+Nine columns. Uses `cursdepre` instead of FXDep. Col 1: baseline with `samp`; Col 2–3: double/triple; Col 4–9: heterogeneity. Col 6–9 add `l.FXBHassl`.
 
 ```stata
-* Table C4: Investment (Alternative Depreciation Definition - Dummy)
-reghdfe capex2al c.FXBHassl##c.cursdepre c.FXBHassl##c.sp4imp ///
-    c.l.FXBHassl##c.l.cursdepre c.l.FXBHassl##c.l.sp4imp DCBassl l.DCBassl cfo2al l.cfo2al ///
-    osources2al l.osources2al l.forev2al l.netderiv2al l.size l.qtob l.debt2a l.ltdtd l.sales2a ///
-    l.gdpgrowth l.privcreditovgdp l.lngdp, absorb(id year c) cluster(c)
-est sto c4_m1
-* ... c4_m2 (triple interaction with cursdepre)
-esttab c4_m1 c4_m2 using "Tables/TableC4_Investment_AltDepreciation.tex", replace ///
-    fragment booktabs label nonotes noomit nomtitles collabels(none) ///
-    star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
+* Table C4: Investment (Alternative Depreciation Definition - Dummy) - 9 columns
+esttab c4_m1 c4_m2 c4_m3 c4_m4 c4_m5 c4_m6 c4_m7 c4_m8 c4_m9 ///
+    using "Tables/TableC4_Investment_AltDepreciation.tex", replace ///
+    mtitles("(1)" "(2)" "(3)" "(4)" "(5)" "(6)" "(7)" "(8)" "(9)") ///
+    drop(oL.FXBHassl) stats(N r2 r2_a firm_fe year_fe, ...)
 ```
 
 #### Table C5: Hedging Heterogeneity
 
-Investment (total investment) regressions by derivatives use: no derivatives vs. uses derivatives.
+**Eight columns**: Col 1–4 (T.Inv, tinv2al) by fderiv and interaction type; Col 5–8 (ΔWC, dwc2al) by fderiv and interaction type. No `netderiv2al` in subsamples. Col 1, 2, 5, 7 use `samp` where applicable.
 
 ```stata
-* Table C5: Investment and hedging derivatives heterogeneity
-* No derivatives: tinv2al, fderiv==0 → c5_m1, c5_m2
-* Uses derivatives: tinv2al, fderiv==1 → c5_m3, c5_m4
-esttab c5_m1 c5_m2 c5_m3 c5_m4 using "Tables/TableC5_Investment_Hedging.tex", replace ///
-    fragment booktabs label nonotes noomit nomtitles collabels(none) ///
-    star(* 0.1 ** 0.05 *** 0.01) b(%9.3f) se(%9.3f)
+* Table C5: Investment and hedging derivatives heterogeneity - 8 columns
+* Col 1-2: T.Inv, fderiv==0 (two-way/triple) | Col 3-4: T.Inv, fderiv==1
+* Col 5-6: Delta WC, fderiv==0 | Col 7-8: Delta WC, fderiv==1
+esttab c5_m1 c5_m2 c5_m3 c5_m4 c5_m5 c5_m6 c5_m7 c5_m8 ///
+    using "Tables/TableC5_Investment_Hedging.tex", replace ///
+    mtitles("(1)" "(2)" "(3)" "(4)" "(5)" "(6)" "(7)" "(8)") ///
+    drop(oL.FXBHassl) stats(N r2 r2_a firm_fe year_fe, ...)
 ```
 
 ---
@@ -901,7 +804,7 @@ graph save "Figures/log_sales_irf.gph", replace
 graph export "Figures/log_sales_irf.pdf", replace
 
 *------------------------------------------------------------------------------
-* Sales-to-Assets Ratio IRF
+* Sales-to-Assets Ratio IRF (sales2al = sales/assetsl)
 *------------------------------------------------------------------------------
 locproj sales2al FXBHassl FXBH_dlndtcr FXBH_sp4imp L1_FXBH_dlndtcr L1_FXBH_sp4imp ///
     dlndtcr sp4imp L1.dlndtcr L1.sp4imp `controls', ///
@@ -918,6 +821,21 @@ graph export "Figures/sales_assets_irf.pdf", replace
 
 - **Stata**: Version 17 or higher recommended
 - **Required packages**: reghdfe, ftools, estout, winsor2, locproj
+
+## Output Files
+
+| Output | Description |
+|--------|-------------|
+| `replication_log.txt` | Full Stata log |
+| `Tables/Table1_CashHoldings.tex` | Main Table 1 |
+| `Tables/Table2_Investment.tex` | Main Table 2 |
+| `Tables/Table3_PanelA_TotalInvestment.tex` | Main Table 3 Panel A |
+| `Tables/Table3_PanelB_WorkingCapital.tex` | Main Table 3 Panel B |
+| `Tables/Table4_Competitiveness.tex` | Main Table 4 |
+| `Tables/TableA2_SummaryStats.tex` | Appendix A2 |
+| `Tables/TableB1_Cash_Covariates.tex` through `TableB5_Cash_Hedging.tex` | Appendix B |
+| `Tables/TableC1_Investment_Covariates.tex` through `TableC5_Investment_Hedging.tex` | Appendix C |
+| `Figures/operating_income_irf.pdf`, `nonoperating_income_irf.pdf`, `log_sales_irf.pdf`, `sales_assets_irf.pdf` | Appendix D IRFs |
 
 ---
 
