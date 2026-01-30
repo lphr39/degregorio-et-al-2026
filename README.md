@@ -67,14 +67,6 @@ To replicate the analysis, users should use Stata. The replication package inclu
    - **Figures:** `Figures/` (local projection PDFs and `.gph` files).  
    `Tables/` and `Figures/` are not in the repository; they are created when you run the do-file.
 
-### Efficient Re-runs
-
-On subsequent runs, the do-file detects if `data/dataset_jie_reg.dta` exists and skips data construction, proceeding directly to estimation.
-
-### Runtime
-
-Approximately 15–20 minutes on a modern computer with at least 4 GB RAM.
-
 ---
 
 ## Data Availability
@@ -83,7 +75,7 @@ The datasets required for replication are not included in this repository due to
 
 **Data available upon request.** Researchers interested in obtaining the data for replication purposes should contact the corresponding author:
 
-**Luis P. de la Horra**  
+**Luis Pablo de la Horra**  
 Email: luispablo.horra@uva.es
 
 See `data/DATA_README.md` for details.
@@ -94,7 +86,6 @@ See `data/DATA_README.md` for details.
 
 - **Stata:** Version 15 or higher (tested on Stata 17)
 - **Packages:** `reghdfe`, `ftools`, `estout`, `winsor2`, `locproj` (auto-installed)
-- **Memory:** 4 GB RAM minimum
 
 ---
 
@@ -126,7 +117,7 @@ Code released under the **MIT License** (see `LICENSE` file).
 
 ## Contact
 
-**Luis P. de la Horra** (Corresponding author)  
+**Luis Pablo de la Horra** (Corresponding author)  
 University of Valladolid  
 Email: luispablo.horra@uva.es
 

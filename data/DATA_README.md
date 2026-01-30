@@ -16,7 +16,7 @@ The following data files should be placed in this folder to run the replication:
 
 Researchers interested in obtaining the data for replication purposes should contact the corresponding author:
 
-**Luis P. de la Horra**  
+**Luis Pablo de la Horra**  
 University of Valladolid  
 Email: luispablo.horra@uva.es
 
