@@ -71,7 +71,7 @@ To replicate the analysis, users should use Stata. The replication package inclu
 
 ## Data Availability
 
-The datasets required for replication are not included in this repository due to licensing restrictions (firm-level data sourced from Refinitiv Eikon).
+The datasets required for replication are not included in this repository due to licensing restrictions (firm-level data sourced from LSEG Workspace).
 
 **Data available upon request.** Researchers interested in obtaining the data for replication purposes should contact the corresponding author:
 
