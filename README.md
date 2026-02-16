@@ -4,7 +4,7 @@
 
 The article will be **open access** under the agreement between the University of Valladolid and Elsevier.
 
-**Link to paper:** See [PAPER.md](PAPER.md) — *(link will be added upon publication)*
+**Link to paper:** [https://doi.org/10.1016/j.najef.2026.102597](https://doi.org/10.1016/j.najef.2026.102597) — See [PAPER.md](PAPER.md) for details.
 
 ## Authors
 

@@ -4,7 +4,7 @@
 
 ---
 
-**Link to published article:** *(will be added upon publication)*
+**Link to published article:** [https://doi.org/10.1016/j.najef.2026.102597](https://doi.org/10.1016/j.najef.2026.102597)
 
 ---
 
